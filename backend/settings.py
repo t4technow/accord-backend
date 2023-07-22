@@ -166,7 +166,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://192.168.1.4:5173",
 ]
 
-CORS_ALLOWED_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = True
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/

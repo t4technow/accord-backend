@@ -14,8 +14,13 @@ from rest_framework import status
 from django.db.models import Q, Max
 
 from .serializer import *
-from chat.models import ChatMessage, ChatThread
-from chat.serializers import ChatMessageSerializer, ChatThreadSerializer
+from chat.models import ChatMessage, ChatThread, GroupChatMessage
+from chat.serializers import (
+    ChatMessageSerializer,
+    ChatThreadSerializer,
+    GroupSerializer,
+    GroupMessageSerializer,
+)
 from social.models import Friend, FriendRequest
 
 
@@ -40,7 +45,6 @@ class ServerMembersListView(ListAPIView):
 
 class ServerCreationView(APIView):
     def post(self, request):
-        print(request.FILES, "-------------------------------------")
         category = request.data.get("category")
         name = request.data.get("name", None)
         avatar = request.FILES["avatar"]
@@ -103,29 +107,32 @@ class ChannelDeleteView(DestroyAPIView):
     serializer_class = ChannelSerializer
 
 
-class GroupListView(ListAPIView):
-    queryset = Group.objects.all()
-    serializer_class = GroupSerializer
+# GROUPS
+class GroupCreateView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def post(self, request):
+        name = request.data.get("name", None)
+        avatar = request.FILES["avatar"]
+        owner = request.user
+        description = request.data.get("description", None)
+        members = request.data.getlist("members[]")
 
-class GroupDetailView(RetrieveAPIView):
-    queryset = Group.objects.all()
-    serializer_class = GroupSerializer
+        if name:
+            group = Group.objects.create(
+                name=name, avatar=avatar, description=description
+            )
 
+        if group:
+            GroupMembership.objects.create(user=owner, group=group, is_admin=True)
 
-class GroupMessagesListView(ListAPIView):
-    queryset = ChatMessage.objects.all()
-    serializer_class = MessageSerializer
+            for member in members:
+                GroupMembership.objects.create(user_id=member, group=group)
 
+            serializer = GroupSerializer(group)
 
-class GroupMembersListView(ListAPIView):
-    queryset = GroupMembership.objects.all()
-    serializer_class = GroupMembersSerializer
-
-
-class GroupCreateView(CreateAPIView):
-    queryset = Group.objects.all()
-    serializer_class = GroupSerializer
+            return Response(status=status.HTTP_201_CREATED, data=serializer.data)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 class GroupUpdateView(UpdateAPIView):
@@ -154,7 +161,7 @@ class UserListView(ListAPIView):
 
 
 class UserDetails(RetrieveAPIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
@@ -293,8 +300,22 @@ class GetChatThreads(APIView):
             .order_by("-latest_message")
             .distinct()
         )
-        serializer = ChatThreadSerializer({"sender": sender, "receiver": receiver})
-        response_data = serializer.data["sender"] + serializer.data["receiver"]
+        # Fetch groups of the requesting user
+        user_groups = Group.objects.filter(members__id=user)
+
+        # Serialize the chat threads and groups
+        chat_thread_serializer = ChatThreadSerializer(
+            {"sender": sender, "receiver": receiver}
+        )
+        group_serializer = GroupSerializer(user_groups, many=True)
+
+        # Combine the serialized data into the response
+        response_data = (
+            chat_thread_serializer.data["sender"]
+            + chat_thread_serializer.data["receiver"]
+        )
+        response_data.extend(group_serializer.data)
+
         return Response(status=status.HTTP_200_OK, data=response_data)
 
 
@@ -316,7 +337,12 @@ class GetThreadMessages(APIView):
         return Response(status=status.HTTP_200_OK, data=serializer.data)
 
 
-view = ServerCreationView()
+class GetGroupMessages(APIView):
+    permission_classes = [IsAuthenticated]
 
-allowed_methods = view.http_method_names
-print(allowed_methods)
+    def get(self, request, *args, **kwargs):
+        group_id = kwargs.get("group_id")
+
+        messages = GroupChatMessage.objects.filter(group=group_id)
+        serializer = GroupMessageSerializer(messages, many=True)
+        return Response(status=status.HTTP_200_OK, data=serializer.data)

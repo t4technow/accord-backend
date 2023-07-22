@@ -51,7 +51,7 @@ urlpatterns = [
     # path("group/<pk>/", GroupDetailView.as_view(), name="group details"),
     # path("group/<pk>/messages/", GroupMessagesListView.as_view(), name="group members"),
     # path("group/<pk>/members/", GroupMembersListView.as_view(), name="group members"),
-    # path("group/create/", GroupCreateView.as_view(), name="create groups"),
+    path("group/create/", GroupCreateView.as_view(), name="create groups"),
     # path("group/update/<pk>/", GroupUpdateView.as_view(), name="update groups"),
     # path("group/delete/<pk>/", GroupDeleteView.as_view(), name="delete groups"),
     path("friends/", FriendsListView.as_view(), name="friends list"),
@@ -76,6 +76,11 @@ urlpatterns = [
         "get-thread-messages/<receiver>",
         GetThreadMessages.as_view(),
         name="thread-messages",
+    ),
+    path(
+        "get-group-messages/<group_id>",
+        GetGroupMessages.as_view(),
+        name="group_messages",
     ),
     path(
         "mutual-friends/<int:friend_id>/",

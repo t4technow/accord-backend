@@ -8,13 +8,21 @@ User = get_user_model()
 class Group(models.Model):
     name = models.CharField(max_length=255)
     avatar = models.ImageField(upload_to="avatar/group", null=True, blank=True)
+    description = models.CharField(max_length=230, null=True, blank=True)
     members = models.ManyToManyField(User, through="GroupMembership")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
 
 
 class GroupMembership(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     group = models.ForeignKey(Group, on_delete=models.CASCADE)
     is_admin = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.user.username} ---> {self.group.name}"
 
 
 class ThreadManager(models.Manager):
@@ -59,9 +67,27 @@ class ChatMessage(models.Model):
         related_name="chat_message_thread",
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+
     message = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
     read = models.BooleanField(default=False)
 
     def __str__(self):
         return f"in {self.thread} - {self.user} says, {self.message}"
+
+
+class GroupChatMessage(models.Model):
+    group = models.ForeignKey(
+        Group,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="group_chat_messages",
+    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    message = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    read = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"in {self.group} - {self.user} says, {self.message}"

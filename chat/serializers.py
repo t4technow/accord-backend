@@ -11,16 +11,20 @@ class SenderSerializer(serializers.ModelSerializer):
     email = serializers.CharField(source="receiver.email")
     profile = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
+    chat_type = serializers.SerializerMethodField()
 
     def get_unread_count(self, instance):
         return instance.chat_message_thread.filter(read=False).count()
 
+    def get_chat_type(self, obj):
+        return "user"
+
     class Meta:
         model = ChatThread
-        fields = ["id", "username", "profile", "email", "unread_count"]
+        fields = ["id", "username", "profile", "email", "unread_count", "chat_type"]
 
     def get_profile(self, obj):
-        user = UserProfile.objects.filter(user=obj.id).first()
+        user = UserProfile.objects.filter(user=obj.receiver.id).first()
         serializer = UserProfileSerializer(user)
 
         return serializer.data
@@ -32,16 +36,20 @@ class ReceiverSerializer(serializers.ModelSerializer):
     email = serializers.CharField(source="sender.email")
     profile = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
+    chat_type = serializers.SerializerMethodField()
 
     def get_unread_count(self, instance):
         return instance.chat_message_thread.filter(read=False).count()
 
+    def get_chat_type(self, obj):
+        return "user"
+
     class Meta:
         model = ChatThread
-        fields = ["id", "username", "profile", "email", "unread_count"]
+        fields = ["id", "username", "profile", "email", "unread_count", "chat_type"]
 
     def get_profile(self, obj):
-        user = UserProfile.objects.filter(user=obj.id).first()
+        user = UserProfile.objects.filter(user=obj.sender.id).first()
         serializer = UserProfileSerializer(user)
 
         return serializer.data
@@ -92,3 +100,36 @@ class ChatMessageSerializer(serializers.ModelSerializer):
 
     def get_receiver(self, obj):
         return obj.thread.receiver.id if obj.thread and obj.thread.receiver else None
+
+
+class GroupMembershipSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GroupMembership
+        fields = ("group", "is_admin")
+
+
+class GroupSerializer(serializers.ModelSerializer):
+    # members = GroupMembershipSerializer(many=True, read_only=True)
+    chat_type = serializers.SerializerMethodField()
+
+    def get_chat_type(self, obj):
+        return "group"
+
+    class Meta:
+        model = Group
+        fields = (
+            "id",
+            "name",
+            "avatar",
+            "chat_type",
+        )
+
+
+class GroupMessageSerializer(serializers.ModelSerializer):
+    sender = serializers.PrimaryKeyRelatedField(source="user", read_only=True)
+    username = serializers.CharField(source="user.username")
+    timestamp = serializers.DateTimeField(format="%Y-%m-%dT%H:%M:%S.%f")
+
+    class Meta:
+        model = GroupChatMessage
+        fields = ["message", "sender", "username", "timestamp"]

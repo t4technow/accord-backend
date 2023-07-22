@@ -36,3 +36,6 @@ class FriendRequest(models.Model):
 
     def __str__(self):
         return self.sender
+
+    class Meta:
+        unique_together = ["sender", "receiver"]

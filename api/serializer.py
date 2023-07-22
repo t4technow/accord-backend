@@ -75,7 +75,7 @@ class FriendSerializer(serializers.ModelSerializer):
         fields = ["id", "friend_id", "username", "friend_profile", "established_date"]
 
     def get_friend_profile(self, obj):
-        user = UserProfile.objects.filter(user=obj.id).first()
+        user = UserProfile.objects.filter(user=obj.friend.id).first()
         serializer = UserProfileSerializer(user)
 
         return serializer.data
@@ -88,7 +88,7 @@ class FriendOfSerializer(serializers.ModelSerializer):
     friend_profile = serializers.SerializerMethodField()
 
     def get_friend_profile(self, obj):
-        user = UserProfile.objects.filter(user=obj.id).first()
+        user = UserProfile.objects.filter(user=obj.user.id).first()
         serializer = UserProfileSerializer(user)
 
         return serializer.data
@@ -130,18 +130,6 @@ class MessageSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class GroupSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Group
-        fields = "__all__"
-
-
-class GroupMembersSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = GroupMembership
-        fields = "__all__"
-
-
 class SendRequestSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source="sender.id")
     friend_id = serializers.IntegerField(source="receiver.id")
@@ -163,11 +151,10 @@ class SendRequestSerializer(serializers.ModelSerializer):
     def get_friend_profile(self, obj):
         user = UserProfile.objects.filter(user=obj.receiver.id).first()
         serializer = UserProfileSerializer(user)
+        return serializer.data
 
     def get_type(self, obj):
         return "send"
-
-        return serializer.data
 
 
 class ReceivedRequestSerializer(serializers.ModelSerializer):

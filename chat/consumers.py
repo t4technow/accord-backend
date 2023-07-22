@@ -6,6 +6,7 @@ from django.db.models import Count
 from datetime import datetime
 
 from .models import *
+from user.models import UserProfile
 
 User = get_user_model()
 
@@ -24,38 +25,76 @@ class ChatConsumer(AsyncWebsocketConsumer):
         sender_id = dmp.get("sender")
         server = dmp.get("server")
         channel = dmp.get("channel")
-
+        chatType = dmp.get("chatType")
+        is_group_chat = dmp.get("is_group_chat")
         sender = await self.get_user(sender_id)
-        receiver = await self.get_user(channel)
-        thread = await self.get_thread(sender, receiver)
 
-        if not sender or not receiver:
-            await self.send({"type": "websocket.send", "text": "User fetch error"})
+        if is_group_chat:
+            group = await self.get_group(channel)
+            user_profile = await self.get_user_profile(sender)
+            await self.save_group_message(group, sender, message)
 
-        receiver_chat_room = f"user_chatroom_{channel}"
+            response = {
+                "message": message,
+                "sender": sender.id,
+                "username": sender.username,
+                "profile_pic": user_profile.avatar.url if user_profile.avatar else None,
+                "group": group.id,
+                "group_name": group.name,
+                "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%f"),
+                "is_group_chat": True,
+            }
 
-        await self.save_message(thread, sender, message)
+            print(response, "------------------------------")
 
-        self.user = self.scope["user"]
-        t = datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
+            await self.channel_layer.group_send(
+                f"group_chatroom_{channel}",
+                {"type": "send_group_chat_message", "text": json.dumps(response)},
+            )
 
-        response = {
-            "message": message,
-            "sender": self.user.id,
-            "username": self.user.username,
-            "timestamp": t,
-        }
+            await self.channel_layer.group_send(
+                self.chat_room,
+                {"type": "send_group_chat_message", "text": json.dumps(response)},
+            )
 
-        await self.channel_layer.group_send(
-            receiver_chat_room,
-            {"type": "send_chat_message", "text": json.dumps(response)},
-        )
+        if chatType == "user":
+            receiver = await self.get_user(channel)
+            thread = await self.get_thread(sender, receiver)
 
-        await self.channel_layer.group_send(
-            self.chat_room, {"type": "send_chat_message", "text": json.dumps(response)}
-        )
+            if not sender or not receiver:
+                await self.send({"type": "websocket.send", "text": "User fetch error"})
+
+            receiver_chat_room = f"user_chatroom_{channel}"
+
+            await self.save_message(thread, sender, message)
+
+            self.user = self.scope["user"]
+            t = datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
+
+            response = {
+                "message": message,
+                "sender": self.user.id,
+                "username": self.user.username,
+                "timestamp": t,
+                "is_group_chat": False,
+            }
+
+            await self.channel_layer.group_send(
+                receiver_chat_room,
+                {"type": "send_chat_message", "text": json.dumps(response)},
+            )
+
+            await self.channel_layer.group_send(
+                self.chat_room,
+                {"type": "send_chat_message", "text": json.dumps(response)},
+            )
 
     async def send_chat_message(self, event):
+        message = event["text"]
+        await self.send(text_data=message)
+
+    async def send_group_chat_message(self, event):
+        print("caled 00000000000000000000000000000000000000000000000000000")
         message = event["text"]
         await self.send(text_data=message)
 
@@ -87,3 +126,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def save_message(self, thread, user, message):
         ChatMessage.objects.create(thread=thread, user=user, message=message)
+
+    @database_sync_to_async
+    def get_user_profile(self, user):
+        try:
+            profile = UserProfile.objects.get(user=user)
+        except UserProfile.DoesNotExist:
+            profile = None
+
+        return profile
+
+    @database_sync_to_async
+    def get_group(self, group_id):
+        group = Group.objects.filter(id=group_id)
+        if group.exists():
+            group = group.first()
+        else:
+            group = None
+
+        return group
+
+    @database_sync_to_async
+    def save_group_message(self, group, user, message):
+        GroupChatMessage.objects.create(group=group, user=user, message=message)
