@@ -42,7 +42,6 @@ INSTALLED_APPS = [
     "server.apps.ServerConfig",
     "social.apps.SocialConfig",
     "user.apps.UserConfig",
-    "postTest",
 ]
 
 MIDDLEWARE = [

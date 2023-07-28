@@ -96,7 +96,15 @@ class ChatMessageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ChatMessage
-        fields = ["message", "sender", "receiver", "username", "timestamp"]
+        fields = [
+            "message",
+            "sender",
+            "receiver",
+            "username",
+            "timestamp",
+            "file",
+            "file_type",
+        ]
 
     def get_receiver(self, obj):
         return obj.thread.receiver.id if obj.thread and obj.thread.receiver else None
@@ -128,8 +136,24 @@ class GroupSerializer(serializers.ModelSerializer):
 class GroupMessageSerializer(serializers.ModelSerializer):
     sender = serializers.PrimaryKeyRelatedField(source="user", read_only=True)
     username = serializers.CharField(source="user.username")
+    profilePic = serializers.SerializerMethodField()
     timestamp = serializers.DateTimeField(format="%Y-%m-%dT%H:%M:%S.%f")
 
     class Meta:
         model = GroupChatMessage
-        fields = ["message", "sender", "username", "timestamp"]
+        fields = [
+            "message",
+            "sender",
+            "username",
+            "timestamp",
+            "profilePic",
+            "file",
+            "file_type",
+        ]
+
+    def get_profilePic(self, obj):
+        try:
+            user_profile = UserProfile.objects.get(user=obj.user)
+            return user_profile.avatar.url if user_profile.avatar else None
+        except UserProfile.DoesNotExist:
+            return None

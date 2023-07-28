@@ -64,6 +64,20 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ["id", "email", "username", "profile", "date_joined"]
 
 
+class MemberUserSerializer(serializers.ModelSerializer):
+    profile = serializers.SerializerMethodField()
+
+    def get_profile(self, obj):
+        user = UserProfile.objects.filter(user=obj.id).first()
+        serializer = UserProfileSerializer(user)
+
+        return serializer.data
+
+    class Meta:
+        model = User
+        fields = ["id", "email", "username", "profile", "date_joined"]
+
+
 class FriendSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source="user.id")
     friend_id = serializers.IntegerField(source="friend.id")
@@ -128,6 +142,19 @@ class MessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatMessage
         fields = "__all__"
+
+
+class GroupMembershipSerializer(serializers.ModelSerializer):
+    user = MemberUserSerializer()
+
+    class Meta:
+        model = GroupMembership
+        fields = ("user", "is_admin")
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data.update(data.pop("user"))
+        return data
 
 
 class SendRequestSerializer(serializers.ModelSerializer):

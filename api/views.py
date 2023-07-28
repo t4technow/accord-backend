@@ -140,6 +140,20 @@ class GroupUpdateView(UpdateAPIView):
     serializer_class = GroupSerializer
 
 
+class GetGroupMembers(APIView):
+    def get(self, request, *args, **kwargs):
+        groupId = kwargs["group_id"]
+        try:
+            members = GroupMembership.objects.filter(group_id=groupId)
+            serializer = GroupMembershipSerializer(members, many=True)
+            return Response(status=status.HTTP_200_OK, data=serializer.data)
+        except Exception as e:
+            print(e)
+            return Response(
+                status=status.HTTP_400_BAD_REQUEST, data="error fetching group"
+            )
+
+
 class GroupDeleteView(DestroyAPIView):
     queryset = Group.objects.all()
     serializer_class = GroupSerializer

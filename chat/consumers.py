@@ -1,7 +1,10 @@
 import json
+import base64
+from urllib.parse import parse_qs
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
 from django.db.models import Count
 from datetime import datetime
 
@@ -13,8 +16,19 @@ User = get_user_model()
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def websocket_connect(self, event):
-        user = self.scope["user"]
-        self.chat_room = f"user_chatroom_{user.id}"
+        # Get the query parameters from the scope
+        query_params = self.scope["query_string"].decode("utf-8")
+        parsed_params = parse_qs(query_params)
+
+        # Get the token, chatType, and channel from the parsed query parameters
+        chat_type = parsed_params.get("chatType", [None])[0]
+        groupId = parsed_params.get("channel", [None])[0]
+
+        if chat_type == "group":
+            self.chat_room = f"group_chatroom_{groupId}"
+        else:
+            user = self.scope["user"]
+            self.chat_room = f"user_chatroom_{user.id}"
 
         await self.channel_layer.group_add(self.chat_room, self.channel_name)
         await self.accept()
@@ -27,15 +41,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
         channel = dmp.get("channel")
         chatType = dmp.get("chatType")
         is_group_chat = dmp.get("is_group_chat")
+        files = dmp.get("files", [])
         sender = await self.get_user(sender_id)
 
         if is_group_chat:
             group = await self.get_group(channel)
             user_profile = await self.get_user_profile(sender)
-            await self.save_group_message(group, sender, message)
+            if files:
+                for file_data in files:
+                    file_name = file_data.get("fileName")
+                    file_type = file_data.get("fileType")
+                    file_data = file_data.get("fileData")
+                    binary_data = base64.b64decode(file_data)
+                    file = ContentFile(binary_data, name=file_name)
+
+                    await self.save_group_message(
+                        group, sender, message, file, file_type
+                    )
+            else:
+                await self.save_group_message(group, sender, message)
 
             response = {
                 "message": message,
+                "files": files,
                 "sender": sender.id,
                 "username": sender.username,
                 "profile_pic": user_profile.avatar.url if user_profile.avatar else None,
@@ -45,16 +73,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 "is_group_chat": True,
             }
 
-            print(response, "------------------------------")
-
             await self.channel_layer.group_send(
                 f"group_chatroom_{channel}",
-                {"type": "send_group_chat_message", "text": json.dumps(response)},
-            )
-
-            await self.channel_layer.group_send(
-                self.chat_room,
-                {"type": "send_group_chat_message", "text": json.dumps(response)},
+                {"type": "send_chat_message", "text": json.dumps(response)},
             )
 
         if chatType == "user":
@@ -66,8 +87,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             receiver_chat_room = f"user_chatroom_{channel}"
 
-            await self.save_message(thread, sender, message)
-
+            if files:
+                for file_data in files:
+                    file_name = file_data.get("fileName")
+                    file_type = file_data.get("fileType")
+                    file_data = file_data.get("fileData")
+                    binary_data = base64.b64decode(file_data)
+                    file = ContentFile(binary_data, name=file_name)
+                await self.save_message(thread, sender, message, file, file_type)
+            else:
+                await self.save_message(thread, sender, message)
             self.user = self.scope["user"]
             t = datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
 
@@ -75,8 +104,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 "message": message,
                 "sender": self.user.id,
                 "username": self.user.username,
+                "receiver": channel,
                 "timestamp": t,
                 "is_group_chat": False,
+                "files": files,
             }
 
             await self.channel_layer.group_send(
@@ -90,11 +121,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
 
     async def send_chat_message(self, event):
-        message = event["text"]
-        await self.send(text_data=message)
-
-    async def send_group_chat_message(self, event):
-        print("caled 00000000000000000000000000000000000000000000000000000")
         message = event["text"]
         await self.send(text_data=message)
 
@@ -124,8 +150,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         return thread
 
     @database_sync_to_async
-    def save_message(self, thread, user, message):
-        ChatMessage.objects.create(thread=thread, user=user, message=message)
+    def save_message(self, thread, user, message, file=None, fileType=None):
+        ChatMessage.objects.create(
+            thread=thread, user=user, message=message, file=file, file_type=fileType
+        )
 
     @database_sync_to_async
     def get_user_profile(self, user):
@@ -147,5 +175,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         return group
 
     @database_sync_to_async
-    def save_group_message(self, group, user, message):
-        GroupChatMessage.objects.create(group=group, user=user, message=message)
+    def save_group_message(self, group, user, message, file=None, file_type=None):
+        GroupChatMessage.objects.create(
+            group=group, user=user, message=message, file=file, file_type=file_type
+        )
