@@ -53,4 +53,4 @@ class Membership(models.Model):
     is_admin = models.BooleanField(default=False)
 
     def __str__(self) -> str:
-        return self.user
+        return self.user.username

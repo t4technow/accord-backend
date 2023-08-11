@@ -1,10 +1,12 @@
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from .views import *
+from notification.views import PushNotificationSubscribeView
 
 urlpatterns = [
-    path("server/", ServerListView.as_view(), name="servers"),
-    # path("server/<pk>/", ServerDetailView.as_view(), name="server details `"),
+    path("servers/", ServerListView.as_view(), name="servers"),
+    path("user-servers/", UserServers.as_view(), name="user_servers"),
+    path("servers/<pk>/", ServerDetailView.as_view(), name="server details `"),
     # path(
     #     "server/<pk>/members/", ServerMembersListView.as_view(), name="server members"
     # ),
@@ -52,12 +54,18 @@ urlpatterns = [
     # path("group/<pk>/messages/", GroupMessagesListView.as_view(), name="group members"),
     # path("group/<pk>/members/", GroupMembersListView.as_view(), name="group members"),
     path("group/create/", GroupCreateView.as_view(), name="create groups"),
-    path("group-info/<int:group_id>/", GetGroupMembers.as_view(), name="group-info"),
+    path("group-meta/<pk>/", GroupInfo.as_view(), name="group-meta"),
+    path("group-members/<int:group_id>/", GetGroupMembers.as_view(), name="group-info"),
+    path(
+        "add-to-group/<int:group_id>/",
+        AddMemberToGroup.as_view(),
+        name="add-members-to-group",
+    ),
     # path("group/update/<pk>/", GroupUpdateView.as_view(), name="update groups"),
     # path("group/delete/<pk>/", GroupDeleteView.as_view(), name="delete groups"),
     path("friends/", FriendsListView.as_view(), name="friends list"),
     path("users/", UserListView.as_view(), name="users"),
-    path("user_info/<pk>/", UserDetails.as_view(), name="user_details"),
+    path("user-info/<pk>/", UserDetails.as_view(), name="user_details"),
     path("add-friend/<int:user_id>", AddFriend.as_view(), name="add-friend"),
     path(
         "pending-requests/",
@@ -69,9 +77,13 @@ urlpatterns = [
         AcceptFriendRequest.as_view(),
         name="accept_friend_request",
     ),
+    path(
+        "friend-suggestions/",
+        FriendSuggestionAPIView.as_view(),
+        name="friend-suggestion",
+    ),
     path("explore/", ExploreListView.as_view(), name="explore"),
     path("explore/<str:category>/", ExploreCategory.as_view(), name="explore_category"),
-    path("direct-messages/", DirectMessages.as_view(), name="direct messages"),
     path("get-chat-threads/", GetChatThreads.as_view(), name="chat-threads"),
     path(
         "get-thread-messages/<receiver>",
@@ -79,15 +91,21 @@ urlpatterns = [
         name="thread-messages",
     ),
     path(
-        "get-group-messages/<group_id>",
+        "group-messages/<group_id>",
         GetGroupMessages.as_view(),
         name="group_messages",
+    ),
+    path(
+        "channel-messages/<channel_id>",
+        GetChannelMessages.as_view(),
+        name="channel_messages",
     ),
     path(
         "mutual-friends/<int:friend_id>/",
         MutualFriendsAPIView.as_view(),
         name="mutual-friends",
     ),
+    path("push/subscribe/", PushNotificationSubscribeView.as_view(), name="subscribe"),
     path("user/", include("user.urls")),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema")),

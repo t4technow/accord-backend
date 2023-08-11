@@ -81,10 +81,18 @@ class UserRegistration(APIView):
                 )
                 email_message.attach_alternative(email_body_html, "text/html")
 
-                # Send the email
-                email_message.send()
+                try:
+                    # Send the email
+                    email_message.send()
+                except Exception as e:
+                    new_user.delete()
+                    return Response(
+                        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        data={"message": "could not send email"},
+                    )
 
                 return Response(status=status.HTTP_201_CREATED)
+
         return Response(reg_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

@@ -52,6 +52,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     profile = serializers.SerializerMethodField()
+    pending_requests = serializers.SerializerMethodField()
 
     def get_profile(self, obj):
         user = UserProfile.objects.filter(user=obj.id).first()
@@ -59,9 +60,20 @@ class UserSerializer(serializers.ModelSerializer):
 
         return serializer.data
 
+    def get_pending_requests(self, obj):
+        count = FriendRequest.objects.filter(receiver=obj).count()
+        return count
+
     class Meta:
         model = User
-        fields = ["id", "email", "username", "profile", "date_joined"]
+        fields = [
+            "id",
+            "email",
+            "username",
+            "profile",
+            "date_joined",
+            "pending_requests",
+        ]
 
 
 class MemberUserSerializer(serializers.ModelSerializer):
