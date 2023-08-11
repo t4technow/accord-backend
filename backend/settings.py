@@ -16,7 +16,7 @@ SECRET_KEY = env("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = env("ALLOWED_HOSTS", default="").split(",")
 
 
 # Application definition
@@ -160,11 +160,7 @@ SIMPLE_JWT = {
     "SLIDING_TOKEN_REFRESH_SERIALIZER": "rest_framework_simplejwt.serializers.TokenRefreshSlidingSerializer",
 }
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://192.168.1.4:5173",
-    "http://192.168.216.187:5173",
-]
+CORS_ALLOWED_ORIGINS = env("CORS_ORIGINS", default="").split(",")
 
 CORS_ALLOW_ALL_ORIGINS = True
 
@@ -196,14 +192,6 @@ MEDIA_ROOT = BASE_DIR / "assets/media/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "user.User"
-
-
-# channels config
-# CHANNEL_LAYERS = {
-#     "default": {
-#         "BACKEND": "channels.layers.InMemoryChannelLayer",
-#     }
-# }
 
 CHANNEL_LAYERS = {
     "default": {

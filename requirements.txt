@@ -30,7 +30,6 @@ lxml==4.9.3
 msgpack==1.0.5
 pdf2image==1.16.3
 Pillow==10.0.0
-psycopg2==2.9.6
 py-vapid==1.9.0
 pyasn1==0.5.0
 pyasn1-modules==0.3.0
