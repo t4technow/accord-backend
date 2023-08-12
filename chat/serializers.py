@@ -15,7 +15,11 @@ class SenderSerializer(serializers.ModelSerializer):
     latest_message = serializers.DateTimeField()
 
     def get_unread_count(self, instance):
-        return instance.chat_message_thread.filter(is_read=False).count()
+        return (
+            instance.chat_message_thread.filter(is_read=False)
+            .exclude(user=instance.sender)
+            .count()
+        )
 
     def get_chat_type(self, obj):
         return "user"

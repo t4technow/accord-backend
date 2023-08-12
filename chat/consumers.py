@@ -1,3 +1,7 @@
+import django
+
+django.setup()
+
 import json
 import base64
 import threading

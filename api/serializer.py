@@ -53,6 +53,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     profile = serializers.SerializerMethodField()
     pending_requests = serializers.SerializerMethodField()
+    is_friend = serializers.SerializerMethodField()
 
     def get_profile(self, obj):
         user = UserProfile.objects.filter(user=obj.id).first()
@@ -64,6 +65,25 @@ class UserSerializer(serializers.ModelSerializer):
         count = FriendRequest.objects.filter(receiver=obj).count()
         return count
 
+    def get_is_friend(self, obj):
+        context = self.context if self.context.get("include_context") else None
+
+        friend_request = FriendRequest.objects.filter(
+            Q(sender=context["user"], receiver=obj)
+            | Q(sender=obj, receiver=context["user"]),
+            Q(
+                Q(status="accepted") | Q(status="pending")
+            ),  # You might need to adjust this based on your model
+        ).first()
+
+        return True if friend_request is not None else False
+
+    def __init__(self, *args, **kwargs):
+        include_context = kwargs.pop("include_context", False)
+        super().__init__(*args, **kwargs)
+        if include_context:
+            self.context["include_context"] = True
+
     class Meta:
         model = User
         fields = [
@@ -73,6 +93,7 @@ class UserSerializer(serializers.ModelSerializer):
             "profile",
             "date_joined",
             "pending_requests",
+            "is_friend",
         ]
 
 

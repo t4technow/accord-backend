@@ -105,6 +105,11 @@ urlpatterns = [
         MutualFriendsAPIView.as_view(),
         name="mutual-friends",
     ),
+    path(
+        "search/<query>",
+        SearchUsersAndServers.as_view(),
+        name="search_users_and_servers",
+    ),
     path("push/subscribe/", PushNotificationSubscribeView.as_view(), name="subscribe"),
     path("user/", include("user.urls")),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
