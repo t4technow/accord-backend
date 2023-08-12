@@ -482,7 +482,8 @@ class GetChannelMessages(APIView):
 class FriendSuggestionAPIView(APIView):
     def get(self, request, *args, **kwargs):
         user = request.user
-        suggestion = User.objects.exclude(id=user.id)
+        suggestions = User.objects.exclude(id=user.id)
+        suggestion = UserSerializer(suggestions, many=True)
         return Response(suggestion.data, status=status.HTTP_200_OK)
 
     # def get_mutual_friends(self, request, user1, user2):
