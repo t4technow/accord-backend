@@ -64,7 +64,6 @@ class ServerCreationView(APIView):
     def post(self, request):
         category = request.data.get("category")
         name = request.data.get("name", None)
-        print("\n\n\n", request.FILES)
         avatar = request.FILES["avatar"]
         user = request.user
         try:
@@ -174,7 +173,6 @@ class GetGroupMembers(APIView):
             serializer = GroupMembershipSerializer(members, many=True)
             return Response(status=status.HTTP_200_OK, data=serializer.data)
         except Exception as e:
-            print(e)
             return Response(
                 status=status.HTTP_400_BAD_REQUEST, data="error fetching group"
             )
@@ -303,7 +301,9 @@ class AcceptFriendRequest(APIView):
 
             # TODO: send notification to the sender of this accepted request
 
-            serializer = UserSerializer(friend)
+            serializer = UserSerializer(
+                friend, context={"user": request.user}, include_context=False
+            )
             return Response(status=status.HTTP_202_ACCEPTED, data=serializer.data)
         return Response(status=status.HTTP_400_BAD_REQUEST, data="something went wrong")
 
@@ -333,7 +333,12 @@ class MutualFriendsAPIView(APIView):
         ]
         mutual_friends = set(user1_friends).intersection(user2_friends)
 
-        serializer = UserSerializer(mutual_friends, many=True)
+        serializer = UserSerializer(
+            mutual_friends,
+            many=True,
+            context={"user": request.user},
+            include_context=False,
+        )
 
         return Response(serializer.data)
 
@@ -402,7 +407,6 @@ class GetChatThreads(APIView):
                 reverse=True,
             )
         except Exception as e:
-            print("Sorting Error:", e)
             sorted_combined_data = combined_data
 
         return Response(status=status.HTTP_200_OK, data=sorted_combined_data)
@@ -480,109 +484,137 @@ class GetChannelMessages(APIView):
 
 
 class FriendSuggestionAPIView(APIView):
+    def get_mutual_friends(self, user1, user2):
+        user1_friends = [
+            friend.user if friend.friend == user1 else friend.friend
+            for friend in Friend.objects.filter(Q(user=user1) | Q(friend=user1))
+        ]
+        user2_friends = [
+            friend.user if friend.friend == user2 else friend.friend
+            for friend in Friend.objects.filter(Q(user=user2) | Q(friend=user2))
+        ]
+        mutual_friends = set(user1_friends).intersection(user2_friends)
+        return set(mutual_friends)
+
+    def get_chat_thread_users(self, user):
+        chat_threads = ChatThread.objects.filter(
+            Q(sender=user) | Q(receiver=user)
+        ).values_list("sender", "receiver")
+
+        chat_thread_users = set()
+        for sender, receiver in chat_threads:
+            if sender != user:
+                chat_thread_users.add(sender)
+            if receiver != user:
+                chat_thread_users.add(receiver)
+
+        return chat_thread_users
+
     def get(self, request, *args, **kwargs):
         user = request.user
-        suggestions = User.objects.exclude(id=user.id)
+
+        # Get user's friends
+        user_friends = [
+            friend.user if friend.friend == user else friend.friend
+            for friend in Friend.objects.filter(Q(user=user) | Q(friend=user))
+        ]
+
+        # Get user's friend requests
+        user_send_requests = FriendRequest.objects.filter(sender=user).values_list(
+            "receiver", flat=True
+        )
+        user_received_requests = FriendRequest.objects.filter(
+            receiver=user
+        ).values_list("sender", flat=True)
+
+        user_friend_requests = list(user_send_requests) + list(user_received_requests)
+
+        if not user_friends and not user_friend_requests:
+            # If user has no friends or accepted friend requests, suggest random users
+            all_users_except_current = User.objects.filter(is_active=True).exclude(
+                id=user.id
+            )
+            suggestions = random.sample(
+                list(all_users_except_current),
+                min(10, all_users_except_current.count()),
+            )
+        else:
+            # Calculate common interests
+            common_interests = set()
+
+            for friend in user_friends:
+                for friend2 in user_friends:
+                    if friend != friend2:
+                        mutual_friends = self.get_mutual_friends(friend, friend2)
+                        common_interests.update(mutual_friends)
+
+            filtered_common_interest = [
+                friend
+                for friend in common_interests
+                if friend != user
+                and friend not in user_friends
+                and friend.id not in user_friend_requests
+            ]
+
+            if not filtered_common_interest:
+                # If no common interests, suggest friends of friends in chat thread
+                chat_thread_users = self.get_chat_thread_users(user)
+                if chat_thread_users:
+                    suggestions = user.get_friends_with_chat_thread_connections(
+                        chat_thread_users
+                    )
+                    if not suggestions:
+                        # Exclude user's friends from suggestions
+                        all_users_except_current = (
+                            User.objects.filter(is_active=True)
+                            .exclude(id=user.id)
+                            .exclude(id__in=[friend.id for friend in user_friends])
+                            .exclude(id__in=[id for id in user_friend_requests])
+                        )
+                        suggestions = random.sample(
+                            list(all_users_except_current),
+                            min(10, all_users_except_current.count()),
+                        )
+
+                else:
+                    all_users_except_current = (
+                        User.objects.filter(is_active=True)
+                        .exclude(id=user.id)
+                        .exclude(id__in=[friend.id for friend in user_friends])
+                        .exclude(id__in=[id for id in user_friend_requests])
+                    )
+                    suggestions = random.sample(
+                        list(all_users_except_current),
+                        min(10, all_users_except_current.count()),
+                    )
+
+            else:
+                suggestions = filtered_common_interest
+
         suggestion = UserSerializer(suggestions, many=True)
         return Response(suggestion.data, status=status.HTTP_200_OK)
 
-    # def get_mutual_friends(self, request, user1, user2):
-    #     user1_friends = [
-    #         friend.user if friend.friend == user1 else friend.friend
-    #         for friend in Friend.objects.filter(Q(user=user1) | Q(friend=user1))
-    #     ]
-    #     user2_friends = [
-    #         friend.user if friend.friend == user2 else friend.friend
-    #         for friend in Friend.objects.filter(Q(user=user2) | Q(friend=user2))
-    #     ]
-    #     mutual_friends = set(user1_friends).intersection(user2_friends)
-    #     return set(mutual_friends)
 
-    # def get(self, request, *args, **kwargs):
-    #     user = request.user
+class GetUserInfo(APIView):
+    def get(self, request, user_list):
+        user = request.user
+        friends = Friend.objects.filter(user=user)
+        friend_of = Friend.objects.filter(friend=user)
 
-    #     # Get user's friends
-    #     user_friends = [
-    #         friend.user if friend.friend == user else friend.friend
-    #         for friend in Friend.objects.filter(Q(user=user) | Q(friend=user))
-    #     ]
+        users = []
+        for friend_id in user_list:
+            try:
+                friend_id = int(friend_id)
+            except ValueError:
+                continue  # Skip invalid IDs
 
-    #     # Get user's accepted friend requests
-    #     user_send_requests = FriendRequest.objects.filter(sender=user).values_list(
-    #         "receiver", flat=True
-    #     )
-    #     user_received_requests = FriendRequest.objects.filter(
-    #         receiver=user
-    #     ).values_list("sender", flat=True)
+            if friend_id in friends.values_list(
+                "friend", flat=True
+            ) or friend_id in friend_of.values_list("user", flat=True):
+                user_info = User.objects.get(id=friend_id)
+                users.append(user_info)
 
-    #     user_friend_requests = list(user_send_requests) + list(user_received_requests)
-
-    #     # Calculate common interests
-    #     common_interests = []
-
-    #     for friend in user_friends:
-    #         for friend2 in user_friends:
-    #             if friend != friend2:
-    #                 common_interests += self.get_mutual_friends(friend, friend2)
-
-    #     common_interests = list(set(common_interests))
-
-    #     filtered_common_interest = [
-    #         friend
-    #         for friend in common_interests
-    #         if friend != user and friend not in user_friends
-    #     ]
-    #     # If user has no friends or accepted friend requests, suggest random users
-    #     if not user_friends and not user_friend_requests:
-    #         all_users_except_current = User.objects.exclude(id=user.id)
-    #         # suggestions = random.sample(
-    #         #     list(all_users_except_current),
-    #         #     min(10, all_users_except_current.count()),
-    #         # )
-    #         # # Create a dictionary to keep track of users and their suggestion scores
-    #         # suggestion_dict = {}
-    #         # for suggestion in suggestions:
-    #         #     user_id = suggestion.id
-    #         #     num_common = (
-    #         #         suggestion.num_common if hasattr(suggestion, "num_common") else 0
-    #         #     )
-    #         #     if user_id not in suggestion_dict:
-    #         #         suggestion_dict[user_id] = num_common
-    #         #     else:
-    #         #         suggestion_dict[user_id] = max(suggestion_dict[user_id], num_common)
-
-    #         # suggestion_data = [
-    #         #     {
-    #         #         "id": user_id,  # Change to appropriate identifier
-    #         #         "username": suggestion.username,
-    #         #         "num_common": score,
-    #         #     }
-    #         #     for user_id, score in suggestion_dict.items()
-    #         # ]
-    #         # suggestion_data.sort(key=lambda item: item["num_common"], reverse=True)
-    # suggestion = UserSerializer(all_users_except_current, many=True)
-
-    # else:
-    #     if len(filtered_common_interest) > 0:
-    #         suggestion = UserSerializer(filtered_common_interest, many=True)
-    #     else:
-    #         user_servers = Server.objects.filter(
-    #             Q(owner__id=request.user.id) | Q(membership__id=request.user.id)
-    #         ).distinct()
-    #         members_list = []
-    #         for server in user_servers:
-    #             server_members = Membership.objects.filter(server_id=server.id)
-
-    #             for membership in server_members:
-    #                 members_list.append(membership.user)
-    #         filtered_members_list = [
-    #             friend
-    #             for friend in members_list
-    #             if friend != user and friend not in user_friends
-    #         ]
-    #         if len(filtered_members_list) < 1:
-    #             all_users_except_current = User.objects.exclude(id=user.id)
-
-    #             suggestion = UserSerializer(all_users_except_current, many=True)
-    #         else:
-    #             suggestion = UserSerializer(filtered_members_list, many=True)
+        user_data = UserSerializer(
+            users, many=True, context={"user": user}, include_context=False
+        ).data
+        return Response(user_data, status=status.HTTP_200_OK)

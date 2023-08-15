@@ -1,11 +1,14 @@
-from user.models import User, UserProfile
 from django.db import models
 from django.db.models import Q
 
 
 class Friend(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="friends")
-    friend = models.ForeignKey(User, on_delete=models.CASCADE, related_name="friend_of")
+    user = models.ForeignKey(
+        "user.User", on_delete=models.CASCADE, related_name="friends"
+    )
+    friend = models.ForeignKey(
+        "user.User", on_delete=models.CASCADE, related_name="friend_of"
+    )
     established_date = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -22,10 +25,10 @@ class FriendRequest(models.Model):
         ("declined", "Declined"),
     ]
     sender = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="sent_friend_requests"
+        "user.User", on_delete=models.CASCADE, related_name="sent_friend_requests"
     )
     receiver = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="received_friend_requests"
+        "user.User", on_delete=models.CASCADE, related_name="received_friend_requests"
     )
     status = models.CharField(
         max_length=10,

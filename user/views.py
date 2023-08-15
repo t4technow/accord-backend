@@ -76,7 +76,7 @@ class UserRegistration(APIView):
                 email_message = EmailMultiAlternatives(
                     email_subject,
                     email_body_text,
-                    "t4technow@gmail.com",
+                    "accord@t4technow.com",
                     [new_user.email],
                 )
                 email_message.attach_alternative(email_body_html, "text/html")

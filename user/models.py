@@ -4,6 +4,9 @@ from django.contrib.auth.models import (
     PermissionsMixin,
 )
 from django.db import models
+from django.db.models import Q
+
+from social.models import Friend
 
 
 class CustomUserManager(BaseUserManager):
@@ -31,6 +34,29 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
 
+    def get_friends_with_chat_thread_connections(self, chat_thread_users):
+        user_friends = Friend.objects.filter(Q(user=self) | Q(friend=self))
+        friends = [
+            friend.user if friend.friend == self else friend.friend
+            for friend in user_friends
+        ]
+
+        # Check if any friend is part of the chat thread
+        for friend in friends:
+            if friend in chat_thread_users:
+                return friends
+
+        # If no friends are part of the chat thread, fetch friends of friends
+        friends_of_friends_in_chat_thread = []
+        for friend in friends:
+            friend_of_friends = Friend.objects.filter(
+                Q(user=friend) | Q(friend=friend)
+            ).exclude(user=self)
+            for friend_of_friend in friend_of_friends:
+                if friend_of_friend.user in chat_thread_users:
+                    friends_of_friends_in_chat_thread.append(friend_of_friend.user)
+
+        return friends_of_friends_in_chat_thread
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
@@ -42,7 +68,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 class UserProfile(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='profile')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="profile")
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     avatar = models.ImageField(upload_to="user/avatar", blank=True, null=True)
     cover = models.ImageField(upload_to="user/cover", blank=True, null=True)

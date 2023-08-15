@@ -62,21 +62,24 @@ class UserSerializer(serializers.ModelSerializer):
         return serializer.data
 
     def get_pending_requests(self, obj):
-        count = FriendRequest.objects.filter(receiver=obj).count()
+        count = FriendRequest.objects.filter(receiver=obj, status="pending").count()
         return count
 
     def get_is_friend(self, obj):
         context = self.context if self.context.get("include_context") else None
 
-        friend_request = FriendRequest.objects.filter(
-            Q(sender=context["user"], receiver=obj)
-            | Q(sender=obj, receiver=context["user"]),
-            Q(
-                Q(status="accepted") | Q(status="pending")
-            ),  # You might need to adjust this based on your model
-        ).first()
+        if context is not None:
+            friend_request = FriendRequest.objects.filter(
+                Q(sender=context["user"], receiver=obj)
+                | Q(sender=obj, receiver=context["user"]),
+                Q(
+                    Q(status="accepted") | Q(status="pending")
+                ),  # You might need to adjust this based on your model
+            ).first()
 
-        return True if friend_request is not None else False
+            return True if friend_request is not None else False
+        else:
+            return None
 
     def __init__(self, *args, **kwargs):
         include_context = kwargs.pop("include_context", False)

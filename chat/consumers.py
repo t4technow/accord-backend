@@ -83,7 +83,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         sender_id = dmp.get("sender")
         server = dmp.get("server")
         channel = dmp.get("channel")
-        print(f"\n\nchannel {channel}")
         chatType = dmp.get("chatType")
         is_group_chat = dmp.get("is_group_chat")
         files = dmp.get("files", [])
@@ -311,7 +310,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         receiver_chat_room = f"user_chatroom_{receiver}"
 
         if signal_type and sender_id and signal_data:
-            print("\n\n\n called \n\n\n\n")
             await self.channel_layer.group_send(
                 receiver_chat_room,
                 {
@@ -368,7 +366,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def get_online_users_list(self):
         online_user_ids = await self.get_online_user_ids()
-        print("\n\n\n", online_user_ids, "\n\n\n")
         return online_user_ids
 
     async def update_delivery_status(self, receiver):
@@ -395,13 +392,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
             & ~Q(user_id=user_id)
         )
 
-        print(f"\n\n\n get undelivered:{undelivered_messages}  \n\n\n")
         return list(undelivered_messages)  # Convert QuerySet to a list
 
     @database_sync_to_async
     def mark_messages_as_delivered(self, messages, group_messages, user_id):
-        print("\n\n", group_messages, "\n\n")
-
         for message in messages:
             try:
                 message.delivery_status = True

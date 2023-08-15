@@ -67,6 +67,7 @@ urlpatterns = [
     path("users/", UserListView.as_view(), name="users"),
     path("user-info/<pk>/", UserDetails.as_view(), name="user_details"),
     path("add-friend/<int:user_id>", AddFriend.as_view(), name="add-friend"),
+    path("online-users/<user_list>/", GetUserInfo.as_view(), name="online_users"),
     path(
         "pending-requests/",
         PendingFriendRequests.as_view(),
