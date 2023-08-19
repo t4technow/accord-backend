@@ -7,6 +7,8 @@ import base64
 import threading
 from urllib.parse import parse_qs
 from channels.generic.websocket import AsyncWebsocketConsumer
+from channels.consumer import AsyncConsumer
+
 from channels.db import database_sync_to_async
 from asgiref.sync import sync_to_async, async_to_sync
 from django.contrib.auth import get_user_model
@@ -635,9 +637,6 @@ class OnlineStatusConsumer(AsyncWebsocketConsumer):
                 "online_users": online_user_ids,
             },
         )
-
-
-from channels.consumer import AsyncConsumer
 
 
 class PeerConnectionConsumer(AsyncConsumer):
