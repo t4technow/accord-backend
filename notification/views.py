@@ -2,6 +2,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.views import View
 import json
+from user.models import User
 from django.http import JsonResponse
 from webpush import send_user_notification
 from .models import PushNotificationSubscriber
@@ -17,33 +18,38 @@ class PushNotificationSubscribeView(View):
     def post(self, request, *args, **kwargs):
         try:
             data = json.loads(request.body)
+            endpoint = data.get("endpoint")
             user_id = data.get("user_id")
-            device_token = data.get("device_token")
 
             # Save the subscription to your database
             PushNotificationSubscriber.objects.create(
-                user_id=user_id, device_token=device_token
+                user_id=user_id, device_token=endpoint
             )
+
+            send_push_notification(user_id)
 
             return JsonResponse({"message": "Subscription saved successfully."})
         except Exception as e:
             return JsonResponse({"error": "An error occurred.", "details": str(e)})
 
 
-def send_push_notification(request):
-    user_subscriptions = get_user_subscriptions(request.user.id)
+def send_push_notification(user_id):
+    user_subscriptions = get_user_subscriptions(user_id)
+    user = User.objects.get(id=user_id)
     payload = {
         "title": "Notification Title",
         "body": "Notification Body",
     }
 
+    push_infos = user.webpush_info.select_related("subscription")
+    for push_info in push_infos:
+        print(push_info)
+
     for subscription in user_subscriptions:
         send_user_notification(
             user=subscription.user,
-            payload=json.dumps(payload),
+            payload=payload,
             ttl=1000,  # Time-to-live for the notification
-            vapid_private_key=env("VAPID_PRIVATE_KEY"),
-            vapid_claims={"sub": "mailto:your_email@example.com"},
         )
 
     return JsonResponse({"message": "Push notifications sent successfully."})

@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
+    "webpush",
     # applications
     "chat.apps.ChatConfig",
     "notification.apps.NotificationConfig",
@@ -224,6 +225,12 @@ EMAIL_HOST_USER = env("EMAIL_HOST_USER")
 EMAIL_USE_TLS = env("EMAIL_USE_TLS")
 
 PASSWORD_RESET_TIMEOUT = 14400
+
+WEBPUSH_SETTINGS = {
+    "VAPID_PUBLIC_KEY": env("VAPID_PUBLIC_KEY"),
+    "VAPID_PRIVATE_KEY": env("VAPID_PRIVATE_KEY"),
+    "VAPID_ADMIN_EMAIL": "accord@t4technow.com",
+}
 
 SITE_DOMAIN = env("SITE_DOMAIN")
 FRONT_END = env("FRONT_END")

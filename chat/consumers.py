@@ -293,7 +293,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
 
             await self.channel_layer.group_send(
-                f"serer_chatroom_{self.groupId}",
+                f"server_chatroom_{self.groupId}",
                 {"type": "send_chat_message", "text": json.dumps(response)},
             )
 

@@ -35,7 +35,7 @@ class PushNotificationSubscriber(models.Model):
         User,
         on_delete=models.CASCADE,
     )
-    device_token = models.CharField(max_length=255)
+    device_token = models.CharField(max_length=555)
 
     def __str__(self):
         return self.user.username
