@@ -367,12 +367,14 @@ class GetChatThreads(APIView):
 
         sender = (
             ChatThread.objects.filter(sender=user)
+            .exclude(Q(sender=user, receiver=user))
             .annotate(latest_message=Max("chat_message_thread__timestamp"))
             .order_by("-latest_message")
             .distinct()
         )
         receiver = (
             ChatThread.objects.filter(receiver=user)
+            .exclude(Q(sender=user, receiver=user))
             .annotate(latest_message=Max("chat_message_thread__timestamp"))
             .order_by("-latest_message")
             .distinct()
