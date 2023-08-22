@@ -54,6 +54,7 @@ class UserSerializer(serializers.ModelSerializer):
     profile = serializers.SerializerMethodField()
     pending_requests = serializers.SerializerMethodField()
     is_friend = serializers.SerializerMethodField()
+    is_blocked = serializers.SerializerMethodField()
 
     def get_profile(self, obj):
         user = UserProfile.objects.filter(user=obj.id).first()
@@ -81,6 +82,10 @@ class UserSerializer(serializers.ModelSerializer):
         else:
             return None
 
+    def get_is_blocked(self, obj):
+        requesting_user = self.context["user"]
+        return requesting_user.is_blocked_by(obj)
+
     def __init__(self, *args, **kwargs):
         include_context = kwargs.pop("include_context", False)
         super().__init__(*args, **kwargs)
@@ -97,6 +102,7 @@ class UserSerializer(serializers.ModelSerializer):
             "date_joined",
             "pending_requests",
             "is_friend",
+            "is_blocked",
         ]
 
 

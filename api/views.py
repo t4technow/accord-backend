@@ -11,7 +11,8 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from datetime import datetime
-from django.db.models import Q, Max, Count
+from django.db.models import Q, Max
+from django.shortcuts import get_object_or_404
 
 from .serializer import *
 from chat.models import ChatMessage, ChatThread, GroupChatMessage, ChannelMessage
@@ -23,7 +24,7 @@ from chat.serializers import (
     GroupMessageSerializer,
     ChannelMessageSerializer,
 )
-from social.models import Friend, FriendRequest
+from social.models import Friend, FriendRequest, BlockedUser
 
 from django.conf import settings
 from django.core.cache import cache
@@ -228,6 +229,64 @@ class UserDetails(RetrieveAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, context={"user": request.user})
+        return Response(serializer.data)
+
+
+class BlockUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, username):
+        user_to_block = get_object_or_404(User, username=username)
+
+        if request.user.is_blocked_by(user_to_block):
+            return Response(
+                {"detail": "You are already blocked by this user."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        else:
+            BlockedUser.objects.create(user=request.user, blocked_user=user_to_block)
+            return Response(
+                {"detail": f"You have blocked {user_to_block.username}."},
+                status=status.HTTP_200_OK,
+            )
+
+
+class UnblockUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, username):
+        user_to_unblock = get_object_or_404(User, username=username)
+
+        blocked_relationship = BlockedUser.objects.filter(
+            user=request.user, blocked_user=user_to_unblock
+        ).first()
+
+        if blocked_relationship:
+            blocked_relationship.delete()
+            return Response(
+                {"detail": f"You have unblocked {user_to_unblock.username}."},
+                status=status.HTTP_200_OK,
+            )
+        else:
+            return Response(
+                {"detail": "You haven't blocked this user."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
+class BlockedUsersListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        blocked_users = BlockedUser.objects.filter(user=request.user)
+        serializer = UserSerializer(
+            blocked_users.values_list("blocked_user", flat=True), many=True
+        )
+        return Response(serializer.data)
+
 
 class FriendsListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -239,6 +298,7 @@ class FriendsListView(APIView):
         serializer = CombinedFriendSerializer(
             {"friends": friends, "friend_of": friend_of}
         )
+
         response_data = serializer.data["friends"] + serializer.data["friend_of"]
 
         return Response(response_data)

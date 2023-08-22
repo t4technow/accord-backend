@@ -111,6 +111,10 @@ urlpatterns = [
         SearchUsersAndServers.as_view(),
         name="search_users_and_servers",
     ),
+    path("block-user/<str:username>/", BlockUserView.as_view(), name="block_user"),
+    path(
+        "unblock-user/<str:username>/", UnblockUserView.as_view(), name="unblock_user"
+    ),
     path("push/subscribe/", PushNotificationSubscribeView.as_view(), name="subscribe"),
     path("user/", include("user.urls")),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),

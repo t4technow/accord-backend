@@ -62,6 +62,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = []
 
     objects = CustomUserManager()
+    
+    def is_blocked_by(self, user):
+        return self.blocked_by_users.filter(blocked_user=user).exists()
 
     def __str__(self):
         return self.email
