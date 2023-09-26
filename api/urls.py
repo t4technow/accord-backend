@@ -1,9 +1,17 @@
-from django.urls import include, path
+from django.urls import include, path, re_path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from .views import *
-from notification.views import PushNotificationSubscribeView
+
+from fcm_django.api.rest_framework import FCMDeviceAuthorizedViewSet
+
+from rest_framework.routers import DefaultRouter
+
+router = DefaultRouter()
+
+router.register("devices", FCMDeviceAuthorizedViewSet)
 
 urlpatterns = [
+    re_path(r"^", include(router.urls)),
     path("servers/", ServerListView.as_view(), name="servers"),
     path("user-servers/", UserServers.as_view(), name="user_servers"),
     path("servers/<pk>/", ServerDetailView.as_view(), name="server details `"),
@@ -115,7 +123,7 @@ urlpatterns = [
     path(
         "unblock-user/<str:username>/", UnblockUserView.as_view(), name="unblock_user"
     ),
-    path("push/subscribe/", PushNotificationSubscribeView.as_view(), name="subscribe"),
+    # path("push/subscribe/", PushNotificationSubscribeView.as_view(), name="subscribe"),
     path("user/", include("user.urls")),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema")),

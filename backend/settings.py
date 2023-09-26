@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
+    "fcm_django",
     "webpush",
     # applications
     "chat.apps.ChatConfig",
@@ -226,11 +227,35 @@ EMAIL_USE_TLS = env("EMAIL_USE_TLS")
 
 PASSWORD_RESET_TIMEOUT = 14400
 
-WEBPUSH_SETTINGS = {
-    "VAPID_PUBLIC_KEY": env("VAPID_PUBLIC_KEY"),
-    "VAPID_PRIVATE_KEY": env("VAPID_PRIVATE_KEY"),
-    "VAPID_ADMIN_EMAIL": "accord@t4technow.com",
+# WEBPUSH_SETTINGS = {
+#     "VAPID_PUBLIC_KEY": env("VAPID_PUBLIC_KEY"),
+#     "VAPID_PRIVATE_KEY": env("VAPID_PRIVATE_KEY"),
+#     "VAPID_ADMIN_EMAIL": "accord@t4technow.com",
+# }
+
+from firebase_admin import initialize_app
+from firebase_admin import credentials
+
+cred = credentials.Certificate(BASE_DIR / "credentials.json")
+FIREBASE_APP = initialize_app()
+
+
+FCM_DJANGO_SETTINGS = {
+    # an instance of firebase_admin.App to be used as default for all fcm-django requests
+    # default: None (the default Firebase app)
+    "DEFAULT_FIREBASE_APP": None,
+    # default: _('FCM Django')
+    "APP_VERBOSE_NAME": "Accord",
+    # true if you want to have only one active device per registered user at a time
+    # default: False
+    "ONE_DEVICE_PER_USER": False,
+    # devices to which notifications cannot be sent,
+    # are deleted upon receiving error response from FCM
+    # default: False
+    "DELETE_INACTIVE_DEVICES": False,
 }
 
 SITE_DOMAIN = env("SITE_DOMAIN")
 FRONT_END = env("FRONT_END")
+
+SESSION_COOKIE_SAMESITE = "None"

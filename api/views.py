@@ -31,6 +31,9 @@ from django.core.cache import cache
 from django.core.cache.backends.base import DEFAULT_TIMEOUT
 import random
 
+from notification.views import sendMessage
+
+
 CACHE_TTL = getattr(settings, "CACHE_TTL", DEFAULT_TIMEOUT)
 
 
@@ -48,6 +51,7 @@ class UserServers(APIView):
             Q(owner__id=request.user.id) | Q(membership__id=request.user.id)
         ).distinct()
         serializer = ServerSerializer(servers, many=True)
+        sendMessage()
         return Response(status=status.HTTP_200_OK, data=serializer.data)
 
 
